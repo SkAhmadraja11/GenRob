@@ -209,7 +209,7 @@ export async function checkSupabaseHealth(): Promise<{
     // If anon user has no shop yet, we still get a clean empty result (not 400).
     const { data, error } = await supabase
       .from('shops')
-      .select('id, name, plan')
+      .select('id, name')
       .limit(1)
       .maybeSingle();
 
@@ -228,7 +228,7 @@ export async function checkSupabaseHealth(): Promise<{
     }
 
     if (data) {
-      return { connected: true, shopName: `${data.name} (${data.plan})` };
+      return { connected: true, shopName: data.name };
     }
 
     return { connected: true, shopName: 'Connected — No shop yet (register first)' };

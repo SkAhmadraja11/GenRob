@@ -1,0 +1,39 @@
+{
+  // ── Deno: enabled ONLY for the Edge Functions folder ────────────
+  "deno.enable": false,
+  "deno.enablePaths": [
+    "supabase/functions"
+  ],
+  "deno.config": "./deno.json",
+
+  // ── TypeScript ──────────────────────────────────────────────────
+  "[typescript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+
+  // ── CSS / PostCSS — suppress @tailwind unknown at-rule warnings ─
+  // The built-in CSS language server doesn't understand PostCSS/Tailwind
+  // directives. We tell it to ignore unknown at-rules in CSS files.
+  "css.validate": false,
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "less.lint.unknownAtRules": "ignore",
+
+  // ── Editor settings ──────────────────────────────────────────────
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "typescript.tsdk": "node_modules/typescript/lib",
+
+  // Exclude heavy folders from file watcher
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.git/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true
+  }
+}
