@@ -10,7 +10,8 @@ import {
   Mic, 
   ArrowDownLeft, 
   ShieldCheck, 
-  AlertCircle 
+  AlertCircle,
+  Check
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { parseChallanOCR, recordTransaction, Product } from '../../lib/api';
@@ -45,7 +46,6 @@ export const ChallanOcrView: React.FC<ChallanOcrViewProps> = ({
       const data = await parseChallanOCR();
       setChallanData(data);
 
-      // Prompt the owner via Voice TTS for the first item
       if (data.items && data.items.length > 0) {
         const first = data.items[0];
         const speechMsg = language === 'hi'
@@ -66,12 +66,10 @@ export const ChallanOcrView: React.FC<ChallanOcrViewProps> = ({
     if (!challanData || !challanData.items[index]) return;
     const item = challanData.items[index];
 
-    // Find product in catalog
     const matchedProduct =
       products.find((p) => p.name.toLowerCase().includes(item.product_name.toLowerCase())) ||
       products[0];
 
-    // Commit Stock IN transaction
     await recordTransaction({
       shop_id: matchedProduct.shop_id,
       product_id: matchedProduct.id,
@@ -90,7 +88,6 @@ export const ChallanOcrView: React.FC<ChallanOcrViewProps> = ({
 
     setConfirmedItemIds((prev) => [...prev, index]);
 
-    // Speak audio confirmation & move to next line
     const nextIdx = index + 1;
     if (nextIdx < challanData.items.length) {
       setActiveItemIndex(nextIdx);
@@ -102,10 +99,9 @@ export const ChallanOcrView: React.FC<ChallanOcrViewProps> = ({
         : `Recorded. Next item: ${nextItem.quantity} ${nextItem.unit} ${nextItem.product_name}, rate ${nextItem.rate} rupees. Is this correct?`;
       ttsEngine.speak(nextMsg, language);
     } else {
-      // All items confirmed!
       confetti({
-        particleCount: 60,
-        spread: 70,
+        particleCount: 50,
+        spread: 60,
         origin: { y: 0.6 },
         colors: ['#f59e0b', '#10b981'],
       });
@@ -123,42 +119,42 @@ export const ChallanOcrView: React.FC<ChallanOcrViewProps> = ({
   return (
     <div className="space-y-4 pb-24">
       {/* Overview Banner */}
-      <div className="glass-card p-4 rounded-2xl border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-slate-900/60 p-4 rounded-xl border border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-white">
+            <h2 className="text-base font-bold text-white">
               {language === 'hi'
-                ? 'चालान फोटो + आवाज़ संयोजन प्रविष्टि'
+                ? 'चालान इनवॉइस स्कैनर'
                 : language === 'te'
-                ? 'చలాన్ ఫోటో + వాయిస్ కాంబో ఎంట్రీ'
-                : 'Challan Photo + Voice Combo Entry'}
+                ? 'చలాన్ ఇన్వాయిస్ స్కానర్'
+                : 'Challan & Invoice OCR Scanner'}
             </h2>
-            <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              Feature #2
+            <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-slate-800 text-slate-300 border border-white/[0.06]">
+              Vision AI
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1 max-w-xl">
             {language === 'hi'
-              ? 'थोक सप्लायर डिलीवरी चालान या इनवॉइस अपलोड करें। AI सामान पहचान लेगा, और आप बिना टाइप किए बोलकर तुरंत स्टॉक दर्ज कर सकते हैं।'
+              ? 'थोक सप्लायर डिलीवरी चालान या इनवॉइस अपलोड करें। AI सामान पहचान लेगा, और आप बोलकर तुरंत स्टॉक दर्ज कर सकते हैं।'
               : language === 'te'
-              ? 'హోల్‌సేల్ డెలివరీ చలాన్ లేదా ఇన్వాయిస్ అప్‌లోడ్ చేయండి. AI సరుకులను గుర్తిస్తుంది, టైప్ చేయకుండా మాట్లాడి ధృవీకరించండి.'
-              : 'Upload or capture supplier wholesale delivery slip / invoice. The Edge Function extracts line items, and you confirm each line by speaking without typing.'}
+              ? 'హోల్‌సేల్ డెలివరీ చలాన్ లేదా ఇన్వాయిస్ అప్‌లోడ్ చేయండి. AI సరుకులను గుర్తిస్తుంది, మాట్లాడి ధృవీకరించండి.'
+              : 'Upload wholesale delivery challans or invoices. AI extracts line items for voice verification into inventory.'}
           </p>
         </div>
 
         <button
           onClick={handleRunOcr}
           disabled={isProcessing}
-          className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 hover:brightness-110 transition shrink-0"
+          className="py-2 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs flex items-center justify-center gap-2 shadow-sm transition active:scale-95 shrink-0 disabled:opacity-50"
         >
           {isProcessing ? (
             <span className="flex items-center gap-2">
-              <RotateCcw className="w-4 h-4 animate-spin" />
-              <span>Scanning Challan OCR...</span>
+              <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+              <span>Scanning OCR...</span>
             </span>
           ) : (
             <span className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
+              <Camera className="w-3.5 h-3.5" />
               <span>{t.parseChallan}</span>
             </span>
           )}
@@ -169,18 +165,18 @@ export const ChallanOcrView: React.FC<ChallanOcrViewProps> = ({
       {challanData ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in">
           {/* Supplier & Invoice Summary */}
-          <div className="glass-card rounded-2xl border border-slate-800 p-4 space-y-3">
-            <div className="flex items-center gap-2 text-amber-400 font-bold text-xs">
-              <FileText className="w-4 h-4" />
+          <div className="bg-slate-900/60 rounded-xl border border-white/[0.08] p-4 space-y-3">
+            <div className="flex items-center gap-2 text-slate-300 font-semibold text-xs">
+              <FileText className="w-4 h-4 text-amber-400" />
               <span>{t.extractedItems}</span>
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2 text-xs">
+            <div className="p-3 rounded-lg bg-slate-950 border border-white/[0.06] space-y-2 text-xs">
               <div>
                 <span className="text-slate-400 block text-[10px]">
                   {language === 'hi' ? 'आपूर्तिकर्ता' : language === 'te' ? 'సరఫరాదారు' : 'Supplier'}
                 </span>
-                <span className="font-bold text-white text-sm">{challanData.supplier_name}</span>
+                <span className="font-semibold text-white text-sm">{challanData.supplier_name}</span>
               </div>
               <div className="flex justify-between">
                 <div>
@@ -198,42 +194,38 @@ export const ChallanOcrView: React.FC<ChallanOcrViewProps> = ({
                 <span className="text-slate-400 block text-[10px]">
                   {language === 'hi' ? 'कुल चालान राशि' : language === 'te' ? 'మొత్తం చలాన్ విలువ' : 'Total Challan Amount'}
                 </span>
-                <span className="text-base font-extrabold text-amber-400">
+                <span className="text-base font-bold text-white tabular-nums">
                   ₹{challanData.total_invoice_amount.toLocaleString('en-IN')}
                 </span>
               </div>
             </div>
 
-            <div className="p-3 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-emerald-200 text-xs flex items-start gap-2">
+            <div className="p-3 rounded-lg bg-slate-950 border border-emerald-500/25 text-slate-300 text-xs flex items-start gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
               <span>
                 {confirmedItemIds.length === challanData.items.length
                   ? (language === 'hi'
-                      ? 'सभी सामान सत्यापित होकर सुपाबेस में दर्ज हो गए!'
+                      ? 'सभी सामान सत्यापित होकर स्टॉक में दर्ज हो गए!'
                       : language === 'te'
-                      ? 'అన్ని సరుకులు విజయవంతంగా సుపాబేస్‌లో నమోదయ్యాయి!'
-                      : 'All items verified and saved to Supabase Postgres!')
-                  : (language === 'hi'
-                      ? `${challanData.items.length} में से ${confirmedItemIds.length} सामान सत्यापित हुए`
-                      : language === 'te'
-                      ? `${challanData.items.length} లో ${confirmedItemIds.length} సరుకులు వాయిస్ ద్వారా ధృవీకరించబడ్డాయి`
-                      : `${confirmedItemIds.length} of ${challanData.items.length} items confirmed by voice`)}
+                      ? 'అన్ని సరుకులు విజయవంతంగా స్టాక్‌లో నమోదయ్యాయి!'
+                      : 'All items verified and saved to database!')
+                  : `${confirmedItemIds.length} of ${challanData.items.length} items confirmed`}
               </span>
             </div>
           </div>
 
           {/* Line Items Voice-Confirmation Stream */}
-          <div className="md:col-span-2 glass-card rounded-2xl border border-slate-800 p-4 space-y-3">
-            <h3 className="font-bold text-sm text-white flex items-center justify-between">
+          <div className="md:col-span-2 bg-slate-900/60 rounded-xl border border-white/[0.08] p-4 space-y-3">
+            <h3 className="font-semibold text-xs text-white flex items-center justify-between">
               <span>
-                {language === 'hi' ? 'सामान सत्यापन सूची' : language === 'te' ? 'సరుకుల ధృవీకరణ జాబితా' : 'Line Items Voice Loop'}
+                {language === 'hi' ? 'सामान सत्यापन सूची' : language === 'te' ? 'సరుకుల ధృవీకరణ జాబితా' : 'Line Items Verification'}
               </span>
-              <span className="text-xs text-slate-400 font-normal">
-                {language === 'hi' ? 'बोलें "हाँ / सही है" या क्लिक करें' : language === 'te' ? '"అవును / సరైనదే" అనండి' : 'Tap or say "Yes, correct"'}
+              <span className="text-slate-400 font-normal">
+                {language === 'hi' ? 'बोलें "हाँ" या क्लिक करें' : language === 'te' ? '"అవును" అనండి' : 'Confirm each item'}
               </span>
             </h3>
 
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {challanData.items.map((item: any, idx: number) => {
                 const isConfirmed = confirmedItemIds.includes(idx);
                 const isActive = activeItemIndex === idx && !isConfirmed;
@@ -241,35 +233,37 @@ export const ChallanOcrView: React.FC<ChallanOcrViewProps> = ({
                 return (
                   <div
                     key={idx}
-                    className={`p-3.5 rounded-xl border transition-all ${
+                    className={`p-3 rounded-lg border transition-all ${
                       isConfirmed
-                        ? 'bg-emerald-950/20 border-emerald-500/40 text-slate-300'
+                        ? 'bg-emerald-950/10 border-emerald-500/25 text-slate-300'
                         : isActive
-                        ? 'bg-amber-500/15 border-amber-500/60 shadow-lg shadow-amber-500/10 scale-[1.01]'
-                        : 'bg-slate-900/60 border-slate-800/80 text-slate-400 opacity-60'
+                        ? 'bg-amber-950/15 border-amber-500/40 shadow-sm'
+                        : 'bg-slate-950/40 border-white/[0.06] text-slate-400 opacity-60'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                          <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
                             #{idx + 1}
                           </span>
-                          <h4 className="font-bold text-white text-sm">{item.product_name}</h4>
-                          <span className="text-[10px] text-emerald-400 font-mono">
-                            {Math.round(item.confidence * 100)}% OCR confidence
+                          <h4 className="font-semibold text-white text-xs sm:text-sm">{item.product_name}</h4>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {Math.round(item.confidence * 100)}% OCR
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-4 text-xs mt-1 text-slate-300">
+                        <div className="flex items-center gap-3 text-xs mt-1 text-slate-400">
                           <span>
-                            {language === 'hi' ? 'मात्रा' : language === 'te' ? 'పరిమాణం' : 'Qty'}: <b className="text-white">{item.quantity} {translateUnit(item.unit, language)}</b>
+                            Qty: <strong className="text-slate-200 tabular-nums">{item.quantity} {translateUnit(item.unit, language)}</strong>
                           </span>
+                          <span>•</span>
                           <span>
-                            {language === 'hi' ? 'दर' : language === 'te' ? 'ధర' : 'Rate'}: <b className="text-white">₹{item.rate}</b>
+                            Rate: <strong className="text-slate-200 tabular-nums">₹{item.rate}</strong>
                           </span>
+                          <span>•</span>
                           <span>
-                            {language === 'hi' ? 'कुल' : language === 'te' ? 'మొత్తం' : 'Total'}: <b className="text-amber-300">₹{item.amount.toLocaleString('en-IN')}</b>
+                            Total: <strong className="text-slate-100 tabular-nums">₹{item.amount.toLocaleString('en-IN')}</strong>
                           </span>
                         </div>
                       </div>
@@ -277,20 +271,20 @@ export const ChallanOcrView: React.FC<ChallanOcrViewProps> = ({
                       {/* Action Button */}
                       <div>
                         {isConfirmed ? (
-                          <span className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 font-bold text-xs flex items-center gap-1.5 border border-emerald-500/30">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <span className="px-2.5 py-1 rounded-md bg-emerald-500/15 text-emerald-400 font-medium text-xs flex items-center gap-1 border border-emerald-500/25">
+                            <Check className="w-3.5 h-3.5" />
                             <span>
-                              {language === 'hi' ? 'दर्ज' : language === 'te' ? 'నమోదైంది' : 'Saved'}
+                              {language === 'hi' ? 'दर्ज' : language === 'te' ? 'నమోదైంది' : 'Verified'}
                             </span>
                           </span>
                         ) : (
                           <button
                             onClick={() => handleVoiceConfirmLine(idx)}
-                            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-amber-500/20 hover:brightness-110 transition active:scale-95"
+                            className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs flex items-center gap-1.5 shadow-sm transition active:scale-95"
                           >
                             <Mic className="w-3.5 h-3.5" />
                             <span>
-                              {language === 'hi' ? 'हाँ, पक्का करो' : language === 'te' ? 'అవును, నమోదు చేయండి' : 'Yes, Confirm'}
+                              {language === 'hi' ? 'पुष्टि करें' : language === 'te' ? 'ధృవీకరించండి' : 'Confirm'}
                             </span>
                           </button>
                         )}
@@ -304,36 +298,36 @@ export const ChallanOcrView: React.FC<ChallanOcrViewProps> = ({
         </div>
       ) : (
         /* Empty / Initial State */
-        <div className="glass-card rounded-2xl border border-dashed border-slate-700 p-8 text-center max-w-xl mx-auto">
-          <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto text-amber-400 mb-3">
-            <Camera className="w-7 h-7" />
+        <div className="bg-slate-900/60 rounded-xl border border-dashed border-white/[0.12] p-8 text-center max-w-lg mx-auto">
+          <div className="w-12 h-12 rounded-xl bg-slate-800 border border-white/[0.08] flex items-center justify-center mx-auto text-amber-400 mb-3">
+            <Camera className="w-6 h-6" />
           </div>
-          <h3 className="font-bold text-base text-white mb-1">
+          <h3 className="font-semibold text-sm text-white mb-1">
             {language === 'hi'
               ? 'सप्लायर डिलीवरी चालान या इनवॉइस अपलोड करें'
               : language === 'te'
               ? 'సప్లయర్ డెలివరీ చలాన్ లేదా బిల్లు అప్‌లోడ్ చేయండి'
               : 'Upload Supplier Delivery Challan / Invoice'}
           </h3>
-          <p className="text-xs text-slate-400 mb-4">
+          <p className="text-xs text-slate-400 mb-4 max-w-sm mx-auto">
             {language === 'hi'
-              ? 'बेगम बाज़ार थोक मंडी या डिस्ट्रीब्यूटर का चालान अपलोड करें। हमारी AI तुरंत सभी सामान निकालकर बिना टाइप किए स्टॉक में जोड़ देगी।'
+              ? 'डिस्ट्रीब्यूटर या मंडी का चालान अपलोड करें। AI तुरंत सभी सामान निकालकर बिना टाइप किए स्टॉक में जोड़ देगा।'
               : language === 'te'
-              ? 'బేగంబజార్ హోల్‌సేల్ మార్కెట్ చలాన్ అప్‌లోడ్ చేయండి. మా AI తక్షణమే సరుకులను గుర్తించి స్టాక్‌కు జోడిస్తుంది.'
-              : 'Upload delivery slip from wholesale mandi. Our Vision Edge function will extract all line items for instant voice-confirmed stock IN.'}
+              ? 'మార్కెట్ చలాన్ అప్‌లోడ్ చేయండి. మా AI తక్షణమే సరుకులను గుర్తించి స్టాక్‌కు జోడిస్తుంది.'
+              : 'Upload wholesale slips. Vision Edge models extract all line items for instant voice-confirmed inventory intake.'}
           </p>
           <button
             onClick={handleRunOcr}
             disabled={isProcessing}
-            className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 hover:brightness-110 transition inline-flex items-center gap-2"
+            className="py-2 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs shadow-sm transition inline-flex items-center gap-2 active:scale-95"
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className="w-3.5 h-3.5" />
             <span>
               {language === 'hi'
-                ? 'डेमो चालान स्कैन करें'
+                ? 'डेमो चालान लोड करें'
                 : language === 'te'
-                ? 'డెమో చలాన్ స్కాన్ చేయండి'
-                : 'Load Sample Demo Challan'}
+                ? 'డెమో చలాన్ లోడ్ చేయండి'
+                : 'Load Sample Challan'}
             </span>
           </button>
         </div>

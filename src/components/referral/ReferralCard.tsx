@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Gift, Copy, Check, Share2, Users, Award, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useShopAuth } from '../../hooks/useShopAuth';
 import { getTranslations } from '../../lib/i18n';
@@ -83,10 +84,9 @@ export function ReferralCard({ language }: ReferralCardProps) {
 
   if (loading) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 animate-pulse">
-        <div className="h-4 bg-slate-800 rounded w-1/2 mb-3" />
-        <div className="h-10 bg-slate-800 rounded mb-3" />
-        <div className="h-8 bg-slate-800 rounded" />
+      <div className="bg-slate-900/60 rounded-xl p-5 border border-white/[0.08] animate-pulse space-y-3">
+        <div className="h-4 bg-slate-800 rounded w-1/3" />
+        <div className="h-9 bg-slate-800 rounded" />
       </div>
     );
   }
@@ -94,98 +94,110 @@ export function ReferralCard({ language }: ReferralCardProps) {
   if (!stats) return null;
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-amber-500/20 rounded-2xl p-5 space-y-4">
+    <div className="bg-slate-900/60 rounded-xl p-5 border border-white/[0.08] space-y-4">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="font-bold text-white text-base">🎁 {t.referralTitle}</h3>
+          <div className="flex items-center gap-2">
+            <Gift className="w-4 h-4 text-amber-400" />
+            <h3 className="font-bold text-white text-sm tracking-tight">{t.referralTitle}</h3>
+          </div>
           <p className="text-xs text-slate-400 mt-0.5">
             {t.referralSubtitle}
           </p>
         </div>
-        <div className="text-right">
-          <div className="text-xs text-slate-500">{t.rewardsEarnedLabel}</div>
-          <div className="text-xl font-black text-amber-400">{stats.rewards_earned}</div>
-          <div className="text-xs text-slate-500">
-            {language === 'hi' ? 'मुफ्त महीने' : language === 'te' ? 'ఉచిత నెలలు' : 'free months'}
-          </div>
+        <div className="text-right bg-slate-850 px-3 py-1.5 rounded-lg border border-white/[0.06]">
+          <span className="text-[10px] text-slate-400 font-medium block uppercase tracking-wider">{t.rewardsEarnedLabel}</span>
+          <span className="text-base font-bold text-amber-400 tabular-nums leading-tight">
+            {stats.rewards_earned} <span className="text-xs font-normal text-slate-400">{language === 'hi' ? 'माह' : language === 'te' ? 'నెలలు' : 'mo'}</span>
+          </span>
         </div>
       </div>
 
-      {/* Referral Code */}
-      <div className="bg-slate-950 border border-amber-500/30 rounded-xl p-4 flex items-center justify-between gap-3">
+      {/* Referral Code Box */}
+      <div className="bg-[#0b0f17] border border-white/[0.08] rounded-lg p-3 flex items-center justify-between gap-3">
         <div>
-          <div className="text-xs text-slate-500 mb-1">
+          <div className="text-[10px] text-slate-400 font-medium mb-0.5">
             {language === 'hi' ? 'आपका रेफरल कोड' : language === 'te' ? 'మీ రెఫరల్ కోడ్' : 'Your Referral Code'}
           </div>
-          <div className="text-2xl font-black text-amber-400 tracking-widest">
+          <div className="text-base font-bold text-white font-mono tracking-wider">
             {stats.referral_code}
           </div>
         </div>
         <button
           onClick={handleCopy}
-          className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+          className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
             copied
-              ? 'bg-emerald-600 text-white'
-              : 'bg-amber-500 hover:bg-amber-400 text-slate-900'
+              ? 'bg-emerald-500 text-slate-950 font-bold'
+              : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/[0.08]'
           }`}
         >
-          {copied ? t.copiedLinkBtn : t.copyLinkBtn}
+          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+          <span>{copied ? t.copiedLinkBtn : t.copyLinkBtn}</span>
         </button>
       </div>
 
-      {/* Stats Row */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-slate-800/50 rounded-xl p-3 text-center">
-          <div className="text-2xl font-black text-white">{stats.total_referred}</div>
-          <div className="text-xs text-slate-400">{t.totalReferredLabel}</div>
+        <div className="bg-slate-850/60 border border-white/[0.06] rounded-lg p-3">
+          <div className="flex items-center gap-1.5 text-slate-400 text-xs mb-1">
+            <Users className="w-3.5 h-3.5 text-slate-400" />
+            <span>{t.totalReferredLabel}</span>
+          </div>
+          <div className="text-xl font-bold text-white tabular-nums">{stats.total_referred}</div>
         </div>
-        <div className="bg-slate-800/50 rounded-xl p-3 text-center">
-          <div className="text-2xl font-black text-emerald-400">{stats.converted}</div>
-          <div className="text-xs text-slate-400">{t.rewardsEarnedLabel}</div>
+        <div className="bg-slate-850/60 border border-white/[0.06] rounded-lg p-3">
+          <div className="flex items-center gap-1.5 text-slate-400 text-xs mb-1">
+            <Award className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{t.rewardsEarnedLabel}</span>
+          </div>
+          <div className="text-xl font-bold text-emerald-400 tabular-nums">{stats.converted}</div>
         </div>
       </div>
 
-      {/* How it works */}
-      <div className="space-y-1.5">
+      {/* Step by Step Flow */}
+      <div className="space-y-1.5 pt-1">
         {(language === 'hi'
           ? [
-              '1️⃣ अपने कोड को अन्य दुकानदारों के साथ शेयर करें',
-              '2️⃣ वे आपके कोड से GenRob पर साइनअप करें',
-              '3️⃣ दोनों को 1 महीना Starter प्लान मुफ्त मिलेगा!',
+              { num: '1', text: 'अपने कोड को अन्य दुकानदारों के साथ शेयर करें' },
+              { num: '2', text: 'वे आपके कोड से GenRob पर साइनअप करें' },
+              { num: '3', text: 'दोनों को 1 महीना Starter प्लान मुफ्त मिलेगा' },
             ]
           : language === 'te'
           ? [
-              '1️⃣ మీ కోడ్‌ను ఇతర దుకాణదారులతో పంచుకోండి',
-              '2️⃣ వారు మీ కోడ్‌తో GenRob లో సైన్ అప్ చేస్తారు',
-              '3️⃣ ఇద్దరికీ 1 నెల Starter ప్లాన్ ఉచితం!',
+              { num: '1', text: 'మీ కోడ్‌ను ఇతర దుకాణదారులతో పంచుకోండి' },
+              { num: '2', text: 'వారు మీ కోడ్‌తో GenRob లో సైన్ అప్ చేస్తారు' },
+              { num: '3', text: 'ఇద్దరికీ 1 నెల Starter ప్లాన్ ఉచితం' },
             ]
           : [
-              '1️⃣ Share your code with other shop owners',
-              '2️⃣ They sign up on GenRob with your code',
-              '3️⃣ Both of you get 1 month Starter FREE!',
+              { num: '1', text: 'Share your referral code with other retailers' },
+              { num: '2', text: 'They register their store using your code' },
+              { num: '3', text: 'Both of you receive 1 month Starter free' },
             ]
         ).map((step) => (
-          <div key={step} className="text-xs text-slate-400 flex items-center gap-2">
-            <span>{step}</span>
+          <div key={step.num} className="text-xs text-slate-300 flex items-center gap-2.5">
+            <span className="w-4 h-4 rounded-full bg-slate-800 border border-white/[0.08] text-[10px] font-bold text-slate-400 flex items-center justify-center flex-shrink-0">
+              {step.num}
+            </span>
+            <span>{step.text}</span>
           </div>
         ))}
       </div>
 
-      {/* Share buttons */}
-      <div className="flex gap-2">
+      {/* Share Actions */}
+      <div className="flex gap-2 pt-1">
         <button
           onClick={handleWhatsAppShare}
-          className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
+          className="flex-1 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition flex items-center justify-center gap-2 shadow-sm"
         >
-          <span>📱</span>
-          {language === 'hi' ? 'WhatsApp पर शेयर करें' : language === 'te' ? 'WhatsApp లో పంచుకోండి' : 'WhatsApp Share'}
+          <Share2 className="w-3.5 h-3.5" />
+          <span>{language === 'hi' ? 'WhatsApp पर शेयर करें' : language === 'te' ? 'WhatsApp లో పంచుకోండి' : 'Share on WhatsApp'}</span>
         </button>
         <button
           onClick={handleCopy}
-          className="px-4 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-semibold transition-colors"
+          className="py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-white/[0.08] text-slate-300 text-xs font-medium transition"
         >
-          🔗 {language === 'hi' ? 'कॉपी' : language === 'te' ? 'కాపీ' : 'Copy'}
+          {language === 'hi' ? 'लिंक कॉपी' : language === 'te' ? 'లింక్ కాపీ' : 'Copy Link'}
         </button>
       </div>
     </div>

@@ -16,6 +16,8 @@ import { DailyVoiceBriefing } from './components/briefing/DailyVoiceBriefing';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { VoiceMicModal } from './components/voice/VoiceMicModal';
 import { VoiceConfirmCard } from './components/voice/VoiceConfirmCard';
+import { DynamicVoiceIsland } from './components/voice/DynamicVoiceIsland';
+import { CounterPosMode } from './components/pos/CounterPosMode';
 import { AlertsDrawer } from './components/alerts/AlertsDrawer';
 import { PhoneOtpAuthModal } from './components/auth/PhoneOtpAuthModal';
 import {
@@ -59,6 +61,7 @@ function AppInner() {
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isBillingOpen, setIsBillingOpen] = useState(false);
+  const [isPosModeOpen, setIsPosModeOpen] = useState(false);
   const [selectedProductForConversion, setSelectedProductForConversion] = useState<Product | null>(null);
   const [selectedProductForStock, setSelectedProductForStock] = useState<{
     product: Product;
@@ -140,112 +143,17 @@ function AppInner() {
     );
   }
 
-  // ── Not authenticated → show auth modal (phone OTP) ──────────
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-        <div className="text-center space-y-6 max-w-sm">
-          {/* Language Selector on Login Screen */}
-          <div className="flex justify-center gap-2">
-            <button
-              onClick={() => handleLanguageChange('hi')}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
-                language === 'hi'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                  : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
-              }`}
-            >
-              🇮🇳 हिन्दी
-            </button>
-            <button
-              onClick={() => handleLanguageChange('te')}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
-                language === 'te'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                  : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
-              }`}
-            >
-              🇮🇳 తెలుగు
-            </button>
-            <button
-              onClick={() => handleLanguageChange('en')}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
-                language === 'en'
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                  : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
-              }`}
-            >
-              🌐 English
-            </button>
-          </div>
-
-          <div className="text-6xl">🏪</div>
-          <h1 className="text-3xl font-black text-amber-400">{t.signInTitle}</h1>
-          <p className="text-slate-400 text-sm whitespace-pre-line">
-            {t.signInSubtitle}
-          </p>
-
-          <div className="space-y-3">
-            <button
-              onClick={() => setIsAuthOpen(true)}
-              className="w-full py-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-black text-lg transition-colors shadow-lg shadow-amber-500/20"
-            >
-              {t.signInMobileBtn}
-            </button>
-
-            <button
-              type="button"
-              onClick={async () => {
-                const demoUser = {
-                  id: '22222222-2222-2222-2222-222222222222',
-                  phone: '+919876543210',
-                  role: 'owner',
-                  app_metadata: {
-                    shop_id: '11111111-1111-1111-1111-111111111111',
-                    role: 'owner',
-                    plan: 'free',
-                  },
-                  user_metadata: {
-                    full_name: 'Rajesh Sharma',
-                    shop_name: 'Sri Balaji Kirana & General Stores',
-                  },
-                };
-                await loginWithPhone(demoUser);
-              }}
-              className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-amber-500/40 text-amber-300 font-semibold text-xs flex items-center justify-center gap-2 transition"
-            >
-              <span>{t.oneClickDemoBtn}</span>
-            </button>
-          </div>
-
-          <p className="text-xs text-slate-500">
-            {t.otpSentNotice}
-          </p>
-        </div>
-
-        <PhoneOtpAuthModal
-          isOpen={isAuthOpen}
-          onClose={() => setIsAuthOpen(false)}
-          language={language}
-          onAuthSuccess={async () => {
-            await refresh();
-            setIsAuthOpen(false);
-          }}
-        />
-      </div>
-    );
-  }
-
-  // ── Authenticated but not onboarded → onboarding wizard ───────
-  if (isAuthenticated && !isOnboarded) {
+  // ── Screen: Onboarding (unauthenticated or unonboarded) ─────────
+  if (!isAuthenticated || !isOnboarded) {
     return (
       <OnboardingWizard
-        onComplete={() => refresh()}
+        onComplete={async () => {
+          await refresh();
+        }}
       />
     );
   }
 
-  // ── Plan limit banner ──────────────────────────────────────────
   const isPlanLimitReached = products.length >= (
     shopContext?.plan === 'free' ? 50 : shopContext?.plan === 'starter' ? 500 : 999999
   );
@@ -281,7 +189,19 @@ function AppInner() {
         onOpenAlerts={() => setIsAlertsOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenPosMode={() => setIsPosModeOpen(true)}
       />
+
+      {/* Dynamic Voice Island HUD (Persistent Ambient AI Voice Pill) */}
+      <div className="pt-2">
+        <DynamicVoiceIsland
+          products={products}
+          customers={customers}
+          language={language}
+          onStockUpdated={loadAllData}
+          onOpenFullMicModal={() => setIsVoiceMicOpen(true)}
+        />
+      </div>
 
       {/* Main View Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6">
@@ -356,7 +276,18 @@ function AppInner() {
         language={language}
       />
 
-      {/* ── Modals ── */}
+      {/* ── Modals & HUDs ── */}
+      {isPosModeOpen && (
+        <CounterPosMode
+          isOpen={isPosModeOpen}
+          onClose={() => setIsPosModeOpen(false)}
+          products={products}
+          language={language}
+          onStockUpdated={loadAllData}
+          onOpenVoice={() => setIsVoiceMicOpen(true)}
+        />
+      )}
+
       <VoiceMicModal
         isOpen={isVoiceMicOpen}
         onClose={() => setIsVoiceMicOpen(false)}

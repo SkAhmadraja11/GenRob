@@ -200,24 +200,35 @@ export async function checkSupabaseHealth(): Promise<{
     return {
       connected: false,
       isMockFallback: true,
-      error:
-        'Supabase credentials not configured. Add VITE_SUPABASE_URL or use Connection Settings.',
+      error: 'Supabase credentials not configured. Add VITE_SUPABASE_URL or use Connection Settings.',
     };
   }
 
   try {
-    // Use RLS — current_shop_id() resolves from JWT, so only the caller's shop is returned
+    // Select only columns guaranteed to exist; RLS will scope to caller's shop.
+    // If anon user has no shop yet, we still get a clean empty result (not 400).
     const { data, error } = await supabase
       .from('shops')
-      .select('id, name, owner_name, plan')
-      .limit(1);
+      .select('id, name, plan')
+      .limit(1)
+      .maybeSingle();
 
     if (error) {
+      // 400 / PGRST errors usually mean RLS blocked anon access — still "connected"
+      const isRlsBlock =
+        error.code === 'PGRST116' ||
+        error.code === '42501' ||
+        String(error.message).toLowerCase().includes('rls') ||
+        String(error.message).toLowerCase().includes('permission');
+
+      if (isRlsBlock) {
+        return { connected: true, shopName: 'Connected — please log in to view shop' };
+      }
       return { connected: false, error: error.message };
     }
 
-    if (data && data.length > 0) {
-      return { connected: true, shopName: `${data[0].name} (${data[0].plan})` };
+    if (data) {
+      return { connected: true, shopName: `${data.name} (${data.plan})` };
     }
 
     return { connected: true, shopName: 'Connected — No shop yet (register first)' };

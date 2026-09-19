@@ -71,8 +71,8 @@ export const DailyVoiceBriefing: React.FC<DailyVoiceBriefingProps> = ({
 
   if (loading || !stats) {
     return (
-      <div className="glass-card rounded-2xl border border-slate-800 p-8 text-center text-xs text-slate-400">
-        Computing 24-hour database statistics...
+      <div className="bg-slate-900/60 rounded-xl border border-white/[0.08] p-8 text-center text-xs text-slate-400">
+        Generating 24-hour retail intelligence summary...
       </div>
     );
   }
@@ -82,22 +82,22 @@ export const DailyVoiceBriefing: React.FC<DailyVoiceBriefingProps> = ({
   return (
     <div className="space-y-4 pb-24">
       {/* Hero Daily Briefing Card */}
-      <div className="glass-card-amber p-6 rounded-3xl border border-amber-500/40 relative shadow-2xl overflow-hidden">
+      <div className="bg-slate-900/60 p-6 rounded-2xl border border-white/[0.08] relative">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shadow-lg shadow-amber-500/30">
-              <Radio className="w-6 h-6 animate-pulse" />
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
+              <Radio className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black text-white">
+                <h2 className="text-base font-bold text-white">
                   {t.briefingTitle}
                 </h2>
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  Feature #5
+                <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-slate-800 text-slate-300 border border-white/[0.06]">
+                  Daily AI Digest
                 </span>
               </div>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-slate-400 mt-0.5">
                 {t.briefingSubtitle}
               </p>
             </div>
@@ -106,55 +106,55 @@ export const DailyVoiceBriefing: React.FC<DailyVoiceBriefingProps> = ({
           {/* Audio Speaker Play / Pause Button */}
           <button
             onClick={handlePlayVoiceBriefing}
-            className={`py-3 px-5 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-2.5 shadow-xl transition-all ${
+            className={`py-2 px-4 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm ${
               isPlaying
-                ? 'bg-rose-500 text-white shadow-rose-500/40 glow-rose animate-pulse'
-                : 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-amber-500/40 glow-amber hover:scale-105'
+                ? 'bg-rose-500 text-white'
+                : 'bg-amber-500 hover:bg-amber-400 text-slate-950'
             }`}
           >
             {isPlaying ? (
               <>
-                <VolumeX className="w-5 h-5 stroke-[2.5]" />
+                <VolumeX className="w-4 h-4 stroke-[2]" />
                 <span>{t.stopBriefing}</span>
               </>
             ) : (
               <>
-                <Volume2 className="w-5 h-5 stroke-[2.5]" />
+                <Volume2 className="w-4 h-4 stroke-[2]" />
                 <span>{t.listenBriefing}</span>
               </>
             )}
           </button>
         </div>
 
-        {/* Dynamic Metrics Grid (24-Hour Real Aggregates) */}
+        {/* Dynamic Metrics Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800">
-            <span className="text-[11px] font-semibold text-slate-400 block">{t.total24hSales}</span>
-            <span className="text-xl font-black text-amber-400 mt-1 block">
+          <div className="p-3.5 rounded-xl bg-slate-950/60 border border-white/[0.06]">
+            <span className="text-[11px] font-medium text-slate-400 block">{t.total24hSales}</span>
+            <span className="text-xl font-bold text-white mt-1 block tabular-nums">
               ₹{stats.total_sales_amount.toLocaleString('en-IN')}
             </span>
             <span className="text-[10px] text-slate-500">{stats.stock_out_count} {t.stockOutCount}</span>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800">
-            <span className="text-[11px] font-semibold text-slate-400 block">{t.stockInCount}</span>
-            <span className="text-xl font-black text-emerald-400 mt-1 block">
+          <div className="p-3.5 rounded-xl bg-slate-950/60 border border-white/[0.06]">
+            <span className="text-[11px] font-medium text-slate-400 block">{t.stockInCount}</span>
+            <span className="text-xl font-bold text-emerald-400 mt-1 block tabular-nums">
               {stats.stock_in_count}
             </span>
             <span className="text-[10px] text-slate-500">Inward deliveries</span>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800">
-            <span className="text-[11px] font-semibold text-slate-400 block">कम स्टॉक चेतावनी</span>
-            <span className="text-xl font-black text-rose-400 mt-1 block">
+          <div className="p-3.5 rounded-xl bg-slate-950/60 border border-white/[0.06]">
+            <span className="text-[11px] font-medium text-slate-400 block">कम स्टॉक चेतावनी</span>
+            <span className="text-xl font-bold text-rose-400 mt-1 block tabular-nums">
               {stats.items_below_threshold_count}
             </span>
             <span className="text-[10px] text-rose-400/80">Need reorder urgently</span>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800">
-            <span className="text-[11px] font-semibold text-slate-400 block">नया उधार (New Khata)</span>
-            <span className="text-xl font-black text-amber-300 mt-1 block">
+          <div className="p-3.5 rounded-xl bg-slate-950/60 border border-white/[0.06]">
+            <span className="text-[11px] font-medium text-slate-400 block">नया उधार (New Khata)</span>
+            <span className="text-xl font-bold text-amber-400 mt-1 block tabular-nums">
               ₹{stats.new_udhaar_amount.toLocaleString('en-IN')}
             </span>
             <span className="text-[10px] text-slate-500">Credit logged today</span>
@@ -162,12 +162,12 @@ export const DailyVoiceBriefing: React.FC<DailyVoiceBriefingProps> = ({
         </div>
 
         {/* Spoken Script Transcript Preview */}
-        <div className="p-4 rounded-2xl bg-slate-950/90 border border-amber-500/30">
-          <div className="flex items-center gap-2 mb-2 text-xs font-bold text-amber-400">
-            <Sparkles className="w-4 h-4" />
+        <div className="p-4 rounded-xl bg-slate-950/60 border border-white/[0.06]">
+          <div className="flex items-center gap-1.5 mb-1.5 text-xs font-semibold text-slate-300">
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span>जनरेटेड वॉइस स्क्रिप्ट (Synthesized Voice Script):</span>
           </div>
-          <p className="text-sm font-medium text-slate-200 leading-relaxed italic">
+          <p className="text-xs font-normal text-slate-300 leading-relaxed italic pl-5">
             "{script}"
           </p>
         </div>

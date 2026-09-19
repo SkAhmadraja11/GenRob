@@ -3,10 +3,12 @@ import {
   X, 
   Bell, 
   AlertTriangle, 
+  AlertCircle,
   CheckCircle2, 
   Volume2, 
   RotateCcw, 
-  Package 
+  Package,
+  Check
 } from 'lucide-react';
 import { Alert, resolveAlert } from '../../lib/api';
 import { ttsEngine } from '../../lib/speech/tts';
@@ -48,18 +50,19 @@ export const AlertsDrawer: React.FC<AlertsDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/80 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-md h-full glass-panel border-l border-amber-500/30 p-6 flex flex-col justify-between shadow-2xl overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/75 backdrop-blur-sm animate-fade-in">
+      <div className="w-full max-w-md h-full bg-[#0f172a] border-l border-white/[0.08]
+        p-6 flex flex-col justify-between shadow-2xl overflow-y-auto animate-slide-in-right">
         <div>
           {/* Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
+          <div className="flex items-center justify-between pb-4 border-b border-white/[0.06] mb-4">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                <Bell className="w-5 h-5" />
+              <div className="p-2 rounded-lg bg-slate-800 text-slate-300 border border-white/[0.06]">
+                <Bell className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="font-bold text-base text-white">{t.alertsDrawerTitle}</h3>
-                <span className="text-xs text-slate-400">Postgres Trigger Populated</span>
+                <h3 className="font-bold text-sm text-white">{t.alertsDrawerTitle}</h3>
+                <span className="text-[11px] text-slate-400">Automated inventory triggers</span>
               </div>
             </div>
 
@@ -67,7 +70,7 @@ export const AlertsDrawer: React.FC<AlertsDrawerProps> = ({
               onClick={onClose}
               className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
@@ -75,68 +78,69 @@ export const AlertsDrawer: React.FC<AlertsDrawerProps> = ({
           {activeAlerts.length > 0 && (
             <button
               onClick={handleReadAlerts}
-              className="w-full mb-4 py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-xs border border-amber-500/30 flex items-center justify-center gap-2 transition"
+              className="w-full mb-4 py-2 px-3 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-200 font-medium text-xs border border-white/[0.08] flex items-center justify-center gap-2 transition"
             >
-              <Volume2 className="w-4 h-4" />
+              <Volume2 className="w-4 h-4 text-amber-400" />
               <span>{t.spokenAlertsBtn}</span>
             </button>
           )}
 
           {/* List of Active Alerts */}
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {activeAlerts.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 text-xs">
-                <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-2 opacity-80" />
+              <div className="text-center py-16 text-slate-400 text-xs">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2 opacity-90" />
                 <p className="font-bold text-white text-sm">{t.allClearTitle}</p>
-                <p className="mt-1">{t.allClearMsg}</p>
+                <p className="mt-1 text-slate-400">{t.allClearMsg}</p>
               </div>
             ) : (
               activeAlerts.map((alert) => {
                 const isCritical = alert.severity === 'critical';
+
                 return (
                   <div
                     key={alert.id}
-                    className={`p-3.5 rounded-2xl border ${
+                    className={`rounded-xl border p-3.5 transition-colors ${
                       isCritical
-                        ? 'bg-rose-950/30 border-rose-500/50'
-                        : 'bg-amber-950/20 border-amber-500/40'
+                        ? 'bg-rose-950/15 border-rose-500/30'
+                        : 'bg-slate-900/60 border-white/[0.08]'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-1.5">
                       <div className="flex items-center gap-2">
-                        <span
-                          className={`w-2 h-2 rounded-full ${
-                            isCritical ? 'bg-rose-400 animate-ping' : 'bg-amber-400'
-                          }`}
-                        />
-                        <h4 className="font-bold text-xs text-white">{alert.product_name}</h4>
+                        {isCritical ? (
+                          <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                        )}
+                        <h4 className="font-semibold text-xs text-white leading-snug">{alert.product_name}</h4>
                       </div>
-                      <span
-                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
-                          isCritical
-                            ? 'bg-rose-500/20 text-rose-300'
-                            : 'bg-amber-500/20 text-amber-300'
-                        }`}
-                      >
+                      <span className={`text-[9px] font-medium px-2 py-0.5 rounded uppercase flex-shrink-0 ${
+                        isCritical
+                          ? 'bg-rose-500/15 text-rose-300 border border-rose-500/25'
+                          : 'bg-amber-500/15 text-amber-300 border border-amber-500/25'
+                      }`}>
                         {alert.type.replace(/_/g, ' ')}
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-200 leading-snug mb-3">{alert.message}</p>
+                    <p className="text-xs text-slate-300 leading-snug mb-3 pl-6">{alert.message}</p>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[10px]">
+                    <div className="flex items-center justify-between pt-2 border-t border-white/[0.06] text-[10px] pl-6">
                       <span className="text-slate-500 font-mono">
                         {new Date(alert.created_at).toLocaleTimeString('en-IN', {
                           hour: '2-digit',
                           minute: '2-digit',
                         })}
                       </span>
-
                       <button
                         onClick={() => handleResolve(alert.id)}
-                        className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 font-semibold transition"
+                        className="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700
+                          text-slate-200 font-medium border border-white/[0.08]
+                          transition active:scale-95 flex items-center gap-1"
                       >
-                        {t.resolveAlertBtn}
+                        <Check className="w-3 h-3 text-emerald-400" />
+                        <span>{t.resolveAlertBtn}</span>
                       </button>
                     </div>
                   </div>
@@ -147,8 +151,8 @@ export const AlertsDrawer: React.FC<AlertsDrawerProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="pt-4 border-t border-slate-800 text-center text-[11px] text-slate-500">
-          Supabase Realtime Channel: <span className="text-amber-400">supabase_realtime.alerts</span>
+        <div className="pt-4 border-t border-white/[0.06] text-center text-[11px] text-slate-500 font-mono">
+          Live sync: <span className="text-slate-400">realtime.alerts</span>
         </div>
       </div>
     </div>

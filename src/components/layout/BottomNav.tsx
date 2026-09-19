@@ -1,11 +1,11 @@
 import React from 'react';
-import { 
-  Package, 
-  BookOpen, 
-  Mic, 
-  FileText, 
-  TrendingUp, 
-  Radio 
+import {
+  Package,
+  BookOpen,
+  Mic,
+  FileText,
+  TrendingUp,
+  Radio,
 } from 'lucide-react';
 
 export type NavTab = 'inventory' | 'khata' | 'challan' | 'analytics' | 'briefing';
@@ -17,79 +17,91 @@ interface BottomNavProps {
   language: 'hi' | 'te' | 'en';
 }
 
+const TAB_CONFIG: { id: NavTab; Icon: React.FC<any>; labelHi: string; labelTe: string; labelEn: string }[] = [
+  { id: 'inventory', Icon: Package,    labelHi: 'स्टॉक',          labelTe: 'స్టాక్',     labelEn: 'Stock' },
+  { id: 'khata',     Icon: BookOpen,   labelHi: 'खाता',           labelTe: 'ఖాతా',       labelEn: 'Khata' },
+  { id: 'challan',   Icon: FileText,   labelHi: 'चालान',          labelTe: 'చలాన్',      labelEn: 'Challan' },
+  { id: 'analytics', Icon: TrendingUp, labelHi: 'पूर्वानुमान',     labelTe: 'విశ్లేషణ',   labelEn: 'Insights' },
+  { id: 'briefing',  Icon: Radio,      labelHi: 'बुलेटिन',        labelTe: 'సారాంశం',    labelEn: 'Briefing' },
+];
+
 export const BottomNav: React.FC<BottomNavProps> = ({
   currentTab,
   onSelectTab,
   onOpenVoiceMic,
   language,
 }) => {
-  const labels = {
-    inventory: language === 'hi' ? 'स्टॉक' : language === 'te' ? 'స్టాక్' : 'Stock',
-    khata: language === 'hi' ? 'खाता' : language === 'te' ? 'ఖాతా' : 'Khata',
-    voice: language === 'hi' ? 'बोलें' : language === 'te' ? 'మాట్లాడండి' : 'Speak',
-    challan: language === 'hi' ? 'चालान' : language === 'te' ? 'చలాన్' : 'Challan',
-    analytics: language === 'hi' ? 'पूर्वानुमान' : language === 'te' ? 'విశ్లేషణ' : 'Insights',
-    briefing: language === 'hi' ? 'बुलेटिन' : language === 'te' ? 'సారాంశం' : 'Briefing',
-  };
+  const getLabel = (tab: typeof TAB_CONFIG[0]) =>
+    language === 'hi' ? tab.labelHi : language === 'te' ? tab.labelTe : tab.labelEn;
+
+  const voiceLabel = language === 'hi' ? 'बोलें' : language === 'te' ? 'మాట్లాడండి' : 'Voice';
+
+  // Split tabs around the center mic button
+  const leftTabs  = TAB_CONFIG.slice(0, 2);
+  const rightTabs = TAB_CONFIG.slice(2);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 glass-panel border-t border-amber-500/20 px-2 py-2 sm:py-3 shadow-2xl">
-      <div className="max-w-md sm:max-w-lg mx-auto flex items-center justify-between relative">
-        {/* 1. Inventory Tab */}
-        <button
-          onClick={() => onSelectTab('inventory')}
-          className={`flex-1 flex flex-col items-center gap-1 transition ${currentTab === 'inventory' ? 'text-amber-400' : 'text-slate-400 hover:text-slate-200'}`}
-        >
-          <Package className={`w-5 h-5 ${currentTab === 'inventory' ? 'scale-110' : ''}`} />
-          <span className="text-[10px] font-medium">{labels.inventory}</span>
-        </button>
+    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-[#0c1017]/95 backdrop-blur-lg border-t border-white/[0.08] shadow-2xl">
+      <div className="max-w-md sm:max-w-lg mx-auto flex items-center justify-between px-3 py-1.5 relative">
 
-        {/* 2. Khata Tab */}
-        <button
-          onClick={() => onSelectTab('khata')}
-          className={`flex-1 flex flex-col items-center gap-1 transition ${currentTab === 'khata' ? 'text-amber-400' : 'text-slate-400 hover:text-slate-200'}`}
-        >
-          <BookOpen className={`w-5 h-5 ${currentTab === 'khata' ? 'scale-110' : ''}`} />
-          <span className="text-[10px] font-medium">{labels.khata}</span>
-        </button>
+        {/* ── Left tabs ─────────────────────────────── */}
+        {leftTabs.map(({ id, Icon, ...rest }) => {
+          const isActive = currentTab === id;
+          return (
+            <button
+              key={id}
+              onClick={() => onSelectTab(id)}
+              className={`flex-1 flex flex-col items-center gap-1 py-1 relative
+                transition-all duration-150 active:scale-95 rounded-lg ${
+                isActive ? 'text-amber-400 font-semibold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Icon className={`w-5 h-5 transition-transform duration-150 ${isActive ? 'scale-105 stroke-[2.2]' : 'stroke-[1.7]'}`} />
+              <span className="text-[11px] leading-none">
+                {getLabel({ id, Icon, ...rest })}
+              </span>
+            </button>
+          );
+        })}
 
-        {/* Central Floating Voice Entry Button */}
-        <div className="flex-1 flex justify-center -mt-6">
+        {/* ── Center Voice Action Button ──────────────── */}
+        <div className="flex-1 flex flex-col items-center -mt-5 gap-0.5">
           <button
             onClick={onOpenVoiceMic}
-            className="w-14 h-14 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-600 flex items-center justify-center text-slate-950 shadow-xl shadow-amber-500/50 border-4 border-slate-950 hover:scale-105 active:scale-95 transition-all glow-amber"
+            className="relative w-14 h-14 rounded-2xl
+              bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600
+              flex items-center justify-center text-slate-950
+              shadow-lg shadow-amber-500/25
+              border-2 border-[#0c1017]
+              hover:scale-105 active:scale-95
+              transition-all duration-150
+              focus:outline-none focus:ring-2 focus:ring-amber-400/40"
             title="Voice Stock Entry"
           >
-            <Mic className="w-7 h-7 stroke-[2.5]" />
+            <Mic className="w-6 h-6 stroke-[2.4]" />
           </button>
+          <span className="text-[10px] font-bold text-amber-400/90 tracking-wide">{voiceLabel}</span>
         </div>
 
-        {/* 3. Challan OCR Tab */}
-        <button
-          onClick={() => onSelectTab('challan')}
-          className={`flex-1 flex flex-col items-center gap-1 transition ${currentTab === 'challan' ? 'text-amber-400' : 'text-slate-400 hover:text-slate-200'}`}
-        >
-          <FileText className={`w-5 h-5 ${currentTab === 'challan' ? 'scale-110' : ''}`} />
-          <span className="text-[10px] font-medium">{labels.challan}</span>
-        </button>
-
-        {/* 4. Analytics Tab */}
-        <button
-          onClick={() => onSelectTab('analytics')}
-          className={`flex-1 flex flex-col items-center gap-1 transition ${currentTab === 'analytics' ? 'text-amber-400' : 'text-slate-400 hover:text-slate-200'}`}
-        >
-          <TrendingUp className={`w-5 h-5 ${currentTab === 'analytics' ? 'scale-110' : ''}`} />
-          <span className="text-[10px] font-medium">{labels.analytics}</span>
-        </button>
-
-        {/* 5. Daily Voice Briefing Tab */}
-        <button
-          onClick={() => onSelectTab('briefing')}
-          className={`flex-1 flex flex-col items-center gap-1 transition ${currentTab === 'briefing' ? 'text-amber-400' : 'text-slate-400 hover:text-slate-200'}`}
-        >
-          <Radio className={`w-5 h-5 ${currentTab === 'briefing' ? 'scale-110' : ''}`} />
-          <span className="text-[10px] font-medium">{labels.briefing}</span>
-        </button>
+        {/* ── Right tabs ────────────────────────────── */}
+        {rightTabs.map(({ id, Icon, ...rest }) => {
+          const isActive = currentTab === id;
+          return (
+            <button
+              key={id}
+              onClick={() => onSelectTab(id)}
+              className={`flex-1 flex flex-col items-center gap-1 py-1 relative
+                transition-all duration-150 active:scale-95 rounded-lg ${
+                isActive ? 'text-amber-400 font-semibold' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Icon className={`w-5 h-5 transition-transform duration-150 ${isActive ? 'scale-105 stroke-[2.2]' : 'stroke-[1.7]'}`} />
+              <span className="text-[11px] leading-none">
+                {getLabel({ id, Icon, ...rest })}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </nav>
   );

@@ -28,14 +28,30 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Bypass Service Worker for Vite dev server requests (e.g., @vite/client, @react-refresh, source files)
-  if (event.request.url.includes('localhost:5174')) {
-    return fetch(event.request);
+  const url = event.request.url;
+
+  // ── Bypass: Vite dev-server internals ─────────────────────────
+  // Plain `return` (no event.respondWith) tells the browser to handle
+  // the request itself. DO NOT use `return fetch(...)` here — the SW
+  // already owns the FetchEvent and a bare return-value is ignored,
+  // which causes "Failed to convert value to Response" errors.
+  if (url.includes('localhost:5174') ||
+      url.includes('/@vite/') ||
+      url.includes('/@react-refresh')) {
+    return; // browser handles it natively
   }
-  // Server requests for Supabase APIs or Edge Functions are never cached – let them run live.
-  if (event.request.url.includes('supabase.co') || event.request.url.includes('/functions/v1/')) {
-    return fetch(event.request);
+
+  // ── Bypass: Supabase REST / Realtime / Edge Functions ─────────
+  // These are live API calls that must never be cached or intercepted.
+  if (url.includes('supabase.co') ||
+      url.includes('/functions/v1/') ||
+      url.includes('/rest/v1/') ||
+      url.includes('/auth/v1/') ||
+      url.includes('/realtime/v1/')) {
+    return; // browser handles it natively
   }
+
+  // ── Cache-first for all other static assets ───────────────────
   event.respondWith(
     caches.match(event.request).then((cached) => {
       return cached || fetch(event.request).catch(() => {
