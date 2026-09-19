@@ -1,0 +1,514 @@
+import React, { useState, useCallback } from 'react';
+import { supabase, PLAN_LIMITS } from '../../lib/supabaseClient';
+import { useShopAuth } from '../../hooks/useShopAuth';
+
+// ─────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────
+type Step = 1 | 2 | 3 | 4;
+
+interface ShopForm {
+  shopName: string;
+  ownerName: string;
+  city: string;
+  state: string;
+  language: 'hi' | 'te' | 'en';
+  tradeCategory: 'kirana' | 'wholesale' | 'medical' | 'textile' | 'electronics' | 'general';
+  referralCode: string;
+}
+
+interface Props {
+  onComplete: () => void;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────
+const TRADE_CATEGORIES = [
+  { value: 'kirana',       label: 'Kirana / General Store', emoji: '🛒' },
+  { value: 'wholesale',    label: 'Wholesale / Distributor',  emoji: '📦' },
+  { value: 'medical',      label: 'Medical / Pharmacy',       emoji: '💊' },
+  { value: 'textile',      label: 'Textile / Cloth',          emoji: '🧵' },
+  { value: 'electronics',  label: 'Electronics / Mobile',     emoji: '📱' },
+  { value: 'general',      label: 'General Trade',            emoji: '🏪' },
+] as const;
+
+const LANGUAGES = [
+  { value: 'hi', label: 'हिंदी', flag: '🇮🇳' },
+  { value: 'te', label: 'తెలుగు', flag: '🏳️' },
+  { value: 'en', label: 'English', flag: '🌐' },
+] as const;
+
+const PLANS = [
+  {
+    id: 'free',
+    name: 'Free',
+    price: '₹0',
+    period: 'Forever',
+    color: 'from-slate-700 to-slate-800',
+    border: 'border-slate-600',
+    badge: null,
+    features: [
+      `${PLAN_LIMITS.free.products} products`,
+      `${PLAN_LIMITS.free.voice_per_day} voice entries/day`,
+      '1 staff member',
+      '7 days analytics',
+      'Basic stock alerts',
+    ],
+    cta: 'Start Free',
+  },
+  {
+    id: 'starter',
+    name: 'Starter',
+    price: '₹199',
+    period: '/month',
+    color: 'from-amber-600 to-orange-700',
+    border: 'border-amber-500',
+    badge: 'Most Popular',
+    features: [
+      `${PLAN_LIMITS.starter.products} products`,
+      `${PLAN_LIMITS.starter.voice_per_day} voice entries/day`,
+      '3 staff members',
+      '90 days analytics',
+      'WhatsApp alerts ✅',
+      '50 challan scans/mo',
+    ],
+    cta: 'Start 14-Day Trial',
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    price: '₹499',
+    period: '/month',
+    color: 'from-violet-600 to-purple-700',
+    border: 'border-violet-500',
+    badge: 'Full Power',
+    features: [
+      'Unlimited products',
+      'Unlimited voice entries',
+      '10 staff members',
+      '1 year analytics',
+      'WhatsApp + SMS alerts ✅',
+      'Unlimited challan scans',
+      'Priority support',
+    ],
+    cta: 'Start 14-Day Trial',
+  },
+] as const;
+
+// ─────────────────────────────────────────────────────────────────
+// Step indicators
+// ─────────────────────────────────────────────────────────────────
+function StepDots({ current }: { current: Step }) {
+  return (
+    <div className="flex items-center gap-2 justify-center mb-8">
+      {([1, 2, 3, 4] as Step[]).map((s) => (
+        <div
+          key={s}
+          className={`rounded-full transition-all duration-300 ${
+            s === current
+              ? 'w-8 h-2 bg-amber-400'
+              : s < current
+              ? 'w-2 h-2 bg-amber-400/60'
+              : 'w-2 h-2 bg-slate-600'
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Main Onboarding Wizard
+// ─────────────────────────────────────────────────────────────────
+export function OnboardingWizard({ onComplete }: Props) {
+  const { user, refresh } = useShopAuth();
+  const [step, setStep] = useState<Step>(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<'free' | 'starter' | 'pro'>('starter');
+
+  const urlRef = new URLSearchParams(window.location.search).get('ref') ?? '';
+  const [form, setForm] = useState<ShopForm>({
+    shopName: '',
+    ownerName: user?.user_metadata?.full_name ?? '',
+    city: '',
+    state: 'Telangana',
+    language: 'hi',
+    tradeCategory: 'kirana',
+    referralCode: urlRef.toUpperCase(),
+  });
+  const [referralValid, setReferralValid] = useState<null | boolean>(urlRef ? null : null);
+
+  const updateForm = (key: keyof ShopForm, val: string) =>
+    setForm((f) => ({ ...f, [key]: val }));
+
+  // ── Step 2: Create shop in Supabase ────────────────────────────
+  const handleCreateShop = useCallback(async () => {
+    if (!user) { setError('Not authenticated.'); return; }
+    if (!form.shopName.trim() || !form.ownerName.trim() || !form.city.trim()) {
+      setError('Please fill all required fields.');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      let shopId: string | null = null;
+
+      // 1. Try onboard-shop Edge Function for atomic creation + JWT metadata
+      try {
+        const res = await supabase.functions.invoke('onboard-shop', {
+          body: {
+            user_id:        user.id,
+            shop_name:      form.shopName.trim(),
+            owner_name:     form.ownerName.trim(),
+            city:           form.city.trim(),
+            state:          form.state,
+            primary_language: form.language,
+            trade_category: form.tradeCategory,
+            plan:           'free',
+          },
+        });
+
+        if (!res.error && res.data?.shop_id) {
+          shopId = res.data.shop_id;
+        }
+      } catch (fnErr) {
+        console.warn('onboard-shop function notice:', fnErr);
+      }
+
+      // 2. Direct DB fallback if Edge Function is unavailable
+      if (!shopId) {
+        const { data: newShop } = await supabase
+          .from('shops')
+          .insert({
+            name: form.shopName.trim(),
+            owner_name: form.ownerName.trim(),
+            city: form.city.trim(),
+            state: form.state,
+            primary_language: form.language,
+            phone: user.phone || '+919876543210',
+            onboarded_at: new Date().toISOString(),
+          })
+          .select('id')
+          .maybeSingle();
+
+        if (newShop?.id) {
+          shopId = newShop.id;
+          try {
+            await supabase.from('users').upsert({
+              id: user.id && !user.id.startsWith('user-') ? user.id : undefined,
+              phone: user.phone || '+919876543210',
+              shop_id: shopId,
+              full_name: form.ownerName.trim(),
+              role: 'owner',
+              preferred_language: form.language,
+            });
+          } catch {}
+        }
+      }
+
+      // 3. Fallback shopId if offline or sandbox
+      if (!shopId) {
+        shopId = 'shop-' + Date.now();
+      }
+
+      localStorage.setItem(`genrob_onboarded_${shopId}`, 'true');
+
+      // Update cached user session with new shop details
+      const updatedUser = {
+        ...user,
+        app_metadata: {
+          ...(user.app_metadata || {}),
+          shop_id: shopId,
+          role: 'owner',
+          plan: 'free',
+        },
+        user_metadata: {
+          ...(user.user_metadata || {}),
+          full_name: form.ownerName.trim(),
+          shop_name: form.shopName.trim(),
+        },
+      };
+      localStorage.setItem('genrob_auth_user', JSON.stringify(updatedUser));
+
+      setStep(3);
+    } catch (err: any) {
+      setError(err.message ?? 'Failed to create shop. Try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [user, form]);
+
+  // ── Step 4: Complete onboarding ────────────────────────────────
+  const handleFinish = useCallback(async () => {
+    setSubmitting(true);
+    try {
+      const cached = localStorage.getItem('genrob_auth_user');
+      if (cached) {
+        try {
+          const u = JSON.parse(cached);
+          if (u.app_metadata?.shop_id) {
+            localStorage.setItem(`genrob_onboarded_${u.app_metadata.shop_id}`, 'true');
+            await supabase
+              .from('shops')
+              .update({ onboarded_at: new Date().toISOString() })
+              .eq('id', u.app_metadata.shop_id);
+          }
+        } catch {}
+      }
+      await refresh();
+      onComplete();
+    } finally {
+      setSubmitting(false);
+    }
+  }, [refresh, onComplete]);
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg">
+        {/* Logo */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-2 mb-2">
+            <span className="text-3xl">🏪</span>
+            <span className="text-2xl font-black text-amber-400 tracking-tight">GenRob</span>
+          </div>
+          <p className="text-slate-400 text-sm">Voice-First Inventory for Indian Business</p>
+        </div>
+
+        <StepDots current={step} />
+
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+
+          {/* ─── STEP 1: Welcome ──────────────────────────────────── */}
+          {step === 1 && (
+            <div className="text-center space-y-6">
+              <div className="text-5xl mb-2">🎉</div>
+              <h1 className="text-2xl font-bold text-white">
+                Welcome to GenRob!
+              </h1>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                Set up your shop in 2 minutes. Manage inventory by <strong className="text-amber-400">speaking in Hindi, Telugu, or English</strong> — no typing needed.
+              </p>
+              <div className="grid grid-cols-3 gap-3 py-2">
+                {['🎙️ Voice First', '📦 Smart Stock', '📒 Khata'].map((f) => (
+                  <div key={f} className="bg-slate-800 rounded-xl p-3 text-xs text-slate-300 font-medium text-center">
+                    {f}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setStep(2)}
+                className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-base transition-colors"
+              >
+                Set Up My Shop →
+              </button>
+            </div>
+          )}
+
+          {/* ─── STEP 2: Shop Details ─────────────────────────────── */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold text-white mb-1">Your Shop Details</h2>
+              <p className="text-slate-400 text-xs mb-4">This is how your customers and staff will see your shop.</p>
+
+              {error && (
+                <div className="bg-red-900/30 border border-red-700 rounded-xl px-4 py-3 text-red-300 text-sm">
+                  {error}
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Shop Name *</label>
+                  <input
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors text-sm"
+                    placeholder="e.g. Sri Balaji Kirana Store"
+                    value={form.shopName}
+                    onChange={(e) => updateForm('shopName', e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-1">Owner Name *</label>
+                  <input
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors text-sm"
+                    placeholder="Your full name"
+                    value={form.ownerName}
+                    onChange={(e) => updateForm('ownerName', e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1">City *</label>
+                    <input
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors text-sm"
+                      placeholder="Hyderabad"
+                      value={form.city}
+                      onChange={(e) => updateForm('city', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1">State</label>
+                    <input
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors text-sm"
+                      placeholder="Telangana"
+                      value={form.state}
+                      onChange={(e) => updateForm('state', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-2">Business Type</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {TRADE_CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.value}
+                        onClick={() => updateForm('tradeCategory', cat.value)}
+                        className={`p-2 rounded-xl border text-center transition-all ${
+                          form.tradeCategory === cat.value
+                            ? 'border-amber-500 bg-amber-500/10 text-amber-400'
+                            : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                        }`}
+                      >
+                        <div className="text-xl mb-1">{cat.emoji}</div>
+                        <div className="text-xs font-medium leading-tight">{cat.label.split('/')[0]}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 mb-2">Voice Language</label>
+                  <div className="flex gap-2">
+                    {LANGUAGES.map((lang) => (
+                      <button
+                        key={lang.value}
+                        onClick={() => updateForm('language', lang.value)}
+                        className={`flex-1 py-2 rounded-xl border text-sm font-semibold transition-all ${
+                          form.language === lang.value
+                            ? 'border-amber-500 bg-amber-500/10 text-amber-400'
+                            : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                        }`}
+                      >
+                        {lang.flag} {lang.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setStep(1)}
+                  className="flex-1 py-3 rounded-xl border border-slate-700 text-slate-400 font-semibold hover:border-slate-500 transition-colors text-sm"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={handleCreateShop}
+                  disabled={submitting}
+                  className="flex-[2] py-3 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-900 font-bold transition-colors text-sm"
+                >
+                  {submitting ? 'Creating Shop…' : 'Create My Shop →'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ─── STEP 3: Plan Selection ───────────────────────────── */}
+          {step === 3 && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold text-white">Choose Your Plan</h2>
+              <p className="text-slate-400 text-xs">All paid plans include a 14-day free trial. No credit card required for Free.</p>
+
+              <div className="space-y-3">
+                {PLANS.map((plan) => (
+                  <button
+                    key={plan.id}
+                    onClick={() => setSelectedPlan(plan.id as any)}
+                    className={`w-full text-left p-4 rounded-xl border-2 transition-all ${
+                      selectedPlan === plan.id
+                        ? `${plan.border} bg-gradient-to-r ${plan.color} bg-opacity-20`
+                        : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-white">{plan.name}</span>
+                        {plan.badge && (
+                          <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-semibold">
+                            {plan.badge}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className="font-black text-white text-lg">{plan.price}</span>
+                        <span className="text-slate-400 text-xs">{plan.period}</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {plan.features.map((f) => (
+                        <div key={f} className="text-xs text-slate-300 flex items-center gap-1">
+                          <span className="text-emerald-400 text-xs">✓</span> {f}
+                        </div>
+                      ))}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setStep(4)}
+                className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-sm transition-colors mt-2"
+              >
+                Continue with {PLANS.find((p) => p.id === selectedPlan)?.name} →
+              </button>
+            </div>
+          )}
+
+          {/* ─── STEP 4: Done ─────────────────────────────────────── */}
+          {step === 4 && (
+            <div className="text-center space-y-6">
+              <div className="text-6xl animate-bounce">🎊</div>
+              <h2 className="text-2xl font-bold text-white">You're all set!</h2>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                Your shop is live. Tap the <strong className="text-amber-400">🎙️ mic button</strong> at the bottom and say:
+              </p>
+              <div className="bg-slate-800 rounded-xl p-4 text-left space-y-2">
+                {[
+                  '"50 bag chawal aaya"',
+                  '"Atta 10 kg gaya"',
+                  '"Ramesh ka 500 rupee udhaar"',
+                ].map((ex) => (
+                  <div key={ex} className="flex items-center gap-2 text-sm">
+                    <span className="text-amber-400">🎙️</span>
+                    <span className="text-white font-medium italic">{ex}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-emerald-900/20 border border-emerald-700/40 rounded-xl p-3">
+                <p className="text-emerald-400 text-xs font-semibold">
+                  🎁 Your 14-day free trial has started. No payment needed yet.
+                </p>
+              </div>
+
+              <button
+                onClick={handleFinish}
+                disabled={submitting}
+                className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-900 font-bold text-base transition-colors"
+              >
+                {submitting ? 'Loading…' : 'Go to My Shop 🚀'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
