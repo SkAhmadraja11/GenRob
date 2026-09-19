@@ -28,11 +28,14 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Never cache Supabase API calls or Edge Functions - let them run live or through offline sync queue
-  if (event.request.url.includes('supabase.co') || event.request.url.includes('/functions/v1/')) {
-    return;
+  // Bypass Service Worker for Vite dev server requests (e.g., @vite/client, @react-refresh, source files)
+  if (event.request.url.includes('localhost:5174')) {
+    return fetch(event.request);
   }
-
+  // Server requests for Supabase APIs or Edge Functions are never cached – let them run live.
+  if (event.request.url.includes('supabase.co') || event.request.url.includes('/functions/v1/')) {
+    return fetch(event.request);
+  }
   event.respondWith(
     caches.match(event.request).then((cached) => {
       return cached || fetch(event.request).catch(() => {
