@@ -1,0 +1,19 @@
+{
+  "name": "GenRob Kirana Inventory",
+  "short_name": "GenRob",
+  "description": "Voice-First Inventory Management for Indian Small Businesses",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0f17",
+  "theme_color": "#f59e0b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
