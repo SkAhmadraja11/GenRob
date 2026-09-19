@@ -3,19 +3,22 @@ import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 // ─────────────────────────────────────────────────────────────────
 // Supabase Configuration — resolved from env vars or runtime settings
 // ─────────────────────────────────────────────────────────────────
+const DEFAULT_SUPABASE_URL = 'https://hrbdulohbwgjhxkkajqa.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_HMEvRGP5RdLdfVjjCU_coA_LxMlkjpg';
+
 const getStoredConfig = () => {
   const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
   const envKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
   const localUrl = localStorage.getItem('genrob_supabase_url');
   const localKey = localStorage.getItem('genrob_supabase_anon_key');
 
-  const supabaseUrl = localUrl || envUrl || 'https://mock-demo-project.supabase.co';
-  const supabaseAnonKey =
-    localKey || envKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.demo-key';
+  const supabaseUrl = (localUrl && localUrl.trim()) || (envUrl && envUrl.trim()) || DEFAULT_SUPABASE_URL;
+  const supabaseAnonKey = (localKey && localKey.trim()) || (envKey && envKey.trim()) || DEFAULT_SUPABASE_ANON_KEY;
 
   const isConfigured = Boolean(
-    (envUrl && envKey) ||
-      (localUrl && localKey && !localUrl.includes('mock-demo-project'))
+    supabaseUrl &&
+    supabaseAnonKey &&
+    !supabaseUrl.includes('mock-demo-project')
   );
 
   return { supabaseUrl, supabaseAnonKey, isConfigured };

@@ -107,8 +107,9 @@ function AppInner() {
     }
   }, [isAuthenticated, shopContext?.shopId, loadAllData]);
 
-  // Realtime hook called unconditionally
+  // Realtime hook scoped to authenticated shop
   const { isRealtimeActive } = useRealtimeSync({
+    shopId: isAuthenticated && isOnboarded ? shopContext?.shopId : undefined,
     onProductsUpdate: () => fetchProducts().then(setProducts),
     onAlertsUpdate: () => fetchAlerts().then(setAlerts),
     onKhataUpdate: () => fetchCustomers().then(setCustomers),
