@@ -1,6 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { supabase, PLAN_LIMITS } from '../../lib/supabaseClient';
 import { useShopAuth } from '../../hooks/useShopAuth';
+import { PhoneOtpAuthModal } from '../auth/PhoneOtpAuthModal';
+import { Zap, Store, Phone, Sparkles, CheckCircle2, ArrowRight } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────
 // Types
@@ -122,11 +124,12 @@ function StepDots({ current }: { current: Step }) {
 // Main Onboarding Wizard
 // ─────────────────────────────────────────────────────────────────
 export function OnboardingWizard({ onComplete }: Props) {
-  const { user, refresh } = useShopAuth();
+  const { user, loginWithPhone, refresh } = useShopAuth();
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<'free' | 'starter' | 'pro'>('starter');
+  const [isPhoneAuthOpen, setIsPhoneAuthOpen] = useState(false);
 
   const urlRef = new URLSearchParams(window.location.search).get('ref') ?? '';
   const [form, setForm] = useState<ShopForm>({
@@ -138,16 +141,41 @@ export function OnboardingWizard({ onComplete }: Props) {
     tradeCategory: 'kirana',
     referralCode: urlRef.toUpperCase(),
   });
-  const [referralValid, setReferralValid] = useState<null | boolean>(urlRef ? null : null);
 
   const updateForm = (key: keyof ShopForm, val: string) =>
     setForm((f) => ({ ...f, [key]: val }));
 
-  // ── Step 2: Create shop in Supabase ────────────────────────────
+  // ── 1-Click Instant Demo Login ─────────────────────────────────
+  const handleQuickDemo = async () => {
+    setSubmitting(true);
+    try {
+      const demoUser = {
+        id: '22222222-2222-2222-2222-222222222222',
+        phone: '+919876543210',
+        role: 'owner',
+        app_metadata: {
+          shop_id: '11111111-1111-1111-1111-111111111111',
+          role: 'owner',
+          plan: 'free',
+        },
+        user_metadata: {
+          full_name: 'Rajesh Sharma',
+          shop_name: 'Sri Balaji Kirana & General Stores',
+        },
+      };
+      localStorage.setItem('genrob_onboarded_11111111-1111-1111-1111-111111111111', 'true');
+      await loginWithPhone(demoUser);
+      await refresh();
+      onComplete();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ── Step 2: Create custom shop ─────────────────────────────────
   const handleCreateShop = useCallback(async () => {
-    if (!user) { setError('Not authenticated.'); return; }
     if (!form.shopName.trim() || !form.ownerName.trim() || !form.city.trim()) {
-      setError('Please fill all required fields.');
+      setError('Please fill in Shop Name, Owner Name, and City.');
       return;
     }
 
@@ -155,20 +183,37 @@ export function OnboardingWizard({ onComplete }: Props) {
     setError(null);
 
     try {
+      let activeUser = user;
+      if (!activeUser) {
+        activeUser = {
+          id: 'user-' + Date.now(),
+          phone: '+919876543210',
+          role: 'owner',
+          user_metadata: {
+            full_name: form.ownerName.trim(),
+            shop_name: form.shopName.trim(),
+          },
+          app_metadata: {
+            role: 'owner',
+            plan: selectedPlan,
+          },
+        };
+      }
+
       let shopId: string | null = null;
 
-      // 1. Try onboard-shop Edge Function for atomic creation + JWT metadata
+      // 1. Try onboard-shop Edge Function
       try {
         const res = await supabase.functions.invoke('onboard-shop', {
           body: {
-            user_id:        user.id,
-            shop_name:      form.shopName.trim(),
-            owner_name:     form.ownerName.trim(),
-            city:           form.city.trim(),
-            state:          form.state,
+            user_id: activeUser.id,
+            shop_name: form.shopName.trim(),
+            owner_name: form.ownerName.trim(),
+            city: form.city.trim(),
+            state: form.state,
             primary_language: form.language,
             trade_category: form.tradeCategory,
-            plan:           'free',
+            plan: selectedPlan,
           },
         });
 
@@ -181,66 +226,60 @@ export function OnboardingWizard({ onComplete }: Props) {
 
       // 2. Direct DB fallback if Edge Function is unavailable
       if (!shopId) {
-        const { data: newShop } = await supabase
-          .from('shops')
-          .insert({
-            name: form.shopName.trim(),
-            owner_name: form.ownerName.trim(),
-            city: form.city.trim(),
-            state: form.state,
-            primary_language: form.language,
-            phone: user.phone || '+919876543210',
-            onboarded_at: new Date().toISOString(),
-          })
-          .select('id')
-          .maybeSingle();
+        try {
+          const { data: newShop } = await supabase
+            .from('shops')
+            .insert({
+              name: form.shopName.trim(),
+              owner_name: form.ownerName.trim(),
+              city: form.city.trim(),
+              state: form.state,
+              primary_language: form.language,
+              phone: activeUser.phone || '+919876543210',
+              onboarded_at: new Date().toISOString(),
+            })
+            .select('id')
+            .maybeSingle();
 
-        if (newShop?.id) {
-          shopId = newShop.id;
-          try {
-            await supabase.from('users').upsert({
-              id: user.id && !user.id.startsWith('user-') ? user.id : undefined,
-              phone: user.phone || '+919876543210',
-              shop_id: shopId,
-              full_name: form.ownerName.trim(),
-              role: 'owner',
-              preferred_language: form.language,
-            });
-          } catch {}
+          if (newShop?.id) {
+            shopId = newShop.id;
+          }
+        } catch (dbErr) {
+          console.warn('DB insert notice:', dbErr);
         }
       }
 
-      // 3. Fallback shopId if offline or sandbox
+      // 3. Local fallback ID
       if (!shopId) {
         shopId = 'shop-' + Date.now();
       }
 
       localStorage.setItem(`genrob_onboarded_${shopId}`, 'true');
 
-      // Update cached user session with new shop details
+      // Update active user state
       const updatedUser = {
-        ...user,
+        ...activeUser,
         app_metadata: {
-          ...(user.app_metadata || {}),
+          ...(activeUser.app_metadata || {}),
           shop_id: shopId,
           role: 'owner',
-          plan: 'free',
+          plan: selectedPlan,
         },
         user_metadata: {
-          ...(user.user_metadata || {}),
+          ...(activeUser.user_metadata || {}),
           full_name: form.ownerName.trim(),
           shop_name: form.shopName.trim(),
         },
       };
-      localStorage.setItem('genrob_auth_user', JSON.stringify(updatedUser));
 
+      await loginWithPhone(updatedUser);
       setStep(3);
     } catch (err: any) {
       setError(err.message ?? 'Failed to create shop. Try again.');
     } finally {
       setSubmitting(false);
     }
-  }, [user, form]);
+  }, [user, form, selectedPlan, loginWithPhone]);
 
   // ── Step 4: Complete onboarding ────────────────────────────────
   const handleFinish = useCallback(async () => {
@@ -280,31 +319,74 @@ export function OnboardingWizard({ onComplete }: Props) {
 
         <StepDots current={step} />
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl relative">
 
           {/* ─── STEP 1: Welcome ──────────────────────────────────── */}
           {step === 1 && (
-            <div className="text-center space-y-6">
-              <div className="text-5xl mb-2">🎉</div>
-              <h1 className="text-2xl font-bold text-white">
-                Welcome to GenRob!
-              </h1>
-              <p className="text-slate-400 text-sm leading-relaxed">
-                Set up your shop in 2 minutes. Manage inventory by <strong className="text-amber-400">speaking in Hindi, Telugu, or English</strong> — no typing needed.
-              </p>
-              <div className="grid grid-cols-3 gap-3 py-2">
-                {['🎙️ Voice First', '📦 Smart Stock', '📒 Khata'].map((f) => (
-                  <div key={f} className="bg-slate-800 rounded-xl p-3 text-xs text-slate-300 font-medium text-center">
-                    {f}
+            <div className="text-center space-y-5">
+              <div className="inline-flex p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 mb-1 shadow-lg shadow-amber-500/10">
+                <Sparkles className="w-8 h-8" />
+              </div>
+
+              <div>
+                <h1 className="text-2xl font-black text-white tracking-tight">
+                  Welcome to GenRob
+                </h1>
+                <p className="text-slate-400 text-xs mt-1.5 leading-relaxed">
+                  Voice-First Inventory & Khata OS for Kirana, Wholesale & Retail.
+                  Speak in <strong className="text-amber-400">Hindi, Telugu, or English</strong>.
+                </p>
+              </div>
+
+              {/* Feature Pill Matrix */}
+              <div className="grid grid-cols-3 gap-2 py-1">
+                {[
+                  { icon: '🎙️', label: 'Voice Island' },
+                  { icon: '📦', label: '18+ Live Stock' },
+                  { icon: '📒', label: 'Khata Ledger' },
+                ].map((f) => (
+                  <div key={f.label} className="bg-slate-800/80 border border-white/[0.06] rounded-xl p-2.5 text-center">
+                    <div className="text-base mb-1">{f.icon}</div>
+                    <div className="text-[11px] text-slate-300 font-semibold">{f.label}</div>
                   </div>
                 ))}
               </div>
-              <button
-                onClick={() => setStep(2)}
-                className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold text-base transition-colors"
-              >
-                Set Up My Shop →
-              </button>
+
+              <div className="space-y-3 pt-2">
+                {/* 1-Click Instant Demo Button */}
+                <button
+                  type="button"
+                  onClick={handleQuickDemo}
+                  disabled={submitting}
+                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-xl shadow-amber-500/25 hover:brightness-110 active:scale-98 transition disabled:opacity-50"
+                >
+                  <Zap className="w-4 h-4 fill-slate-950" />
+                  <span>⚡ 1-Click Instant Demo (Rajesh Sharma Kirana)</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  {/* Setup New Shop */}
+                  <button
+                    type="button"
+                    onClick={() => setStep(2)}
+                    className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition active:scale-98"
+                  >
+                    <Store className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Set Up My Shop</span>
+                  </button>
+
+                  {/* Phone OTP Login */}
+                  <button
+                    type="button"
+                    onClick={() => setIsPhoneAuthOpen(true)}
+                    className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition active:scale-98"
+                  >
+                    <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Phone OTP Login</span>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -509,6 +591,21 @@ export function OnboardingWizard({ onComplete }: Props) {
           )}
         </div>
       </div>
+
+      {/* Phone OTP Auth Modal — opened from Step 1 */}
+      {isPhoneAuthOpen && (
+        <PhoneOtpAuthModal
+          isOpen={isPhoneAuthOpen}
+          onClose={() => setIsPhoneAuthOpen(false)}
+          language="en"
+          onAuthSuccess={async (authedUser) => {
+            setIsPhoneAuthOpen(false);
+            await loginWithPhone(authedUser);
+            await refresh();
+            onComplete();
+          }}
+        />
+      )}
     </div>
   );
 }
