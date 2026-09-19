@@ -1,16 +1,20 @@
 // GenRob Offline-First Service Worker
-const CACHE_NAME = 'genrob-kirana-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/favicon.svg'
-];
+const CACHE_NAME = 'genrob-kirana-v2';
 
 self.addEventListener('install', (event) => {
+  const scope = self.registration.scope;
+  const staticAssets = [
+    scope,
+    scope + 'index.html',
+    scope + 'manifest.json',
+    scope + 'favicon.svg'
+  ];
+
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
+      return cache.addAll(staticAssets).catch((err) => {
+        console.warn('SW pre-cache notice (non-fatal):', err);
+      });
     })
   );
   self.skipWaiting();
@@ -30,35 +34,49 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
 
-  // ── Bypass: Vite dev-server internals ─────────────────────────
-  // Plain `return` (no event.respondWith) tells the browser to handle
-  // the request itself. DO NOT use `return fetch(...)` here — the SW
-  // already owns the FetchEvent and a bare return-value is ignored,
-  // which causes "Failed to convert value to Response" errors.
-  if (url.includes('localhost:5174') ||
-      url.includes('/@vite/') ||
-      url.includes('/@react-refresh')) {
-    return; // browser handles it natively
+  // ── Bypass: Vite dev-server & hot-reload internals ────────────
+  if (url.includes('/@vite/') ||
+      url.includes('/@react-refresh') ||
+      url.includes('localhost:517')) {
+    return; // Let browser handle dev requests natively
   }
 
-  // ── Bypass: Supabase REST / Realtime / Edge Functions ─────────
-  // These are live API calls that must never be cached or intercepted.
+  // ── Bypass: Supabase & Edge APIs ──────────────────────────────
   if (url.includes('supabase.co') ||
       url.includes('/functions/v1/') ||
       url.includes('/rest/v1/') ||
       url.includes('/auth/v1/') ||
       url.includes('/realtime/v1/')) {
-    return; // browser handles it natively
+    return;
   }
 
-  // ── Cache-first for all other static assets ───────────────────
+  // Non-GET requests should not be intercepted
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // ── Cache-first strategy for static assets ────────────────────
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request).catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
-        }
-      });
+      if (cached) return cached;
+      return fetch(event.request)
+        .then((response) => {
+          if (
+            response &&
+            response.status === 200 &&
+            response.type === 'basic' &&
+            (url.includes('.js') || url.includes('.css') || url.includes('.svg') || url.includes('.png') || url.includes('.woff2'))
+          ) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => {
+          if (event.request.mode === 'navigate') {
+            return caches.match(self.registration.scope + 'index.html');
+          }
+        });
     })
   );
 });
